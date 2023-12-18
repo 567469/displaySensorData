@@ -36,12 +36,12 @@ cursor_phone = conn_phone.cursor()
 
 cursor_phone.execute('SELECT * FROM sensordata WHERE (gnsslatitude > 0) AND (gnsslongitude > 0)')
 rows = cursor_phone.fetchall()
-df1 = pd.DataFrame(rows, columns=['timestamp', 'gnsslatitude', 'gnsslongitude', 'speed_phone', 'accelerometer_x',
+df1 = pd.DataFrame(rows, columns=['timestamp', 'gnsslatitude', 'gnsslongitude', 'speed', 'accelerometer_x',
                                   'accelerometer_y', 'accelerometer_z', 'gyroscope_x', 'gyroscope_y',
                                   'gyroscope_z', 'gravity_x', 'gravity_y', 'gravity_z', 'magnetometer_x',
                                   'magnetometer_y', 'magnetometer_z'])
 df1.rename(columns={'gnsslatitude': 'latitude', 'gnsslongitude': 'longitude'}, inplace=True)
-df1 = df1[['timestamp', 'latitude', 'longitude']]
+df1 = df1[['timestamp', 'latitude', 'longitude', 'speed']]
 
 cursor_car_and_phone.executemany(
     'INSERT OR IGNORE INTO sensordata VALUES (?, ?, ?, ? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -65,7 +65,7 @@ databases = {
 mdf_scaled = mdf.extract_bus_logging(databases)
 
 # mdf_scaled.save("scaled", overwrite=True)
-df_can = mdf_scaled.to_dataframe(time_as_date=True)
+df_can = mdf_scaled.to_dataframe(time_as_date=True, use_interpolation=False)
 
 # print("Start convert timestamp")
 # df_can.index = pd.to_datetime(df_can.index).map(pd.Timestamp.timestamp)
@@ -73,11 +73,21 @@ df_can = mdf_scaled.to_dataframe(time_as_date=True)
 
 df_can.index = df_can.index.tz_convert('Europe/Berlin')
 
+# Daten Bereinigung
+# ----------------------------------------------------------------------------------------------------------------------
+# Loesche Datensaetze die falsche 0 Werte haben (Consumption Valid == 1)
+df_can = df_can[df_can['ConsumptionValid'] != 1]
+# interpoliere die Werte aus asammdf selbst, da die o.g. 0-Werte die interpolation von asammdf stoeren
+df_can = df_can.interpolate(method="linear")
+# Loesche verbleibende nan Werte
+df_can = df_can.dropna(subset=['SpeedValid', 'Speed', 'PositionValid', 'Latitude', 'Longitude'])
+# ----------------------------------------------------------------------------------------------------------------------
+
 # Berechnete Korrektur aus gettimedifference.py
 # ----------------------------------------------------------------------------------------------------------------------
 plt_sth(df1, df_can)
 
-df_can.index = pd.to_datetime(df_can.index) - pd.Timedelta(minutes=2, seconds=30)
+df_can.index = pd.to_datetime(df_can.index) - pd.Timedelta(minutes=2)
 plt_sth(df1, df_can)
 
 timedelta_calc = calculate_time_offset(df1, df_can)
@@ -86,6 +96,8 @@ plt_sth(df1, df_can)
 # ----------------------------------------------------------------------------------------------------------------------
 
 # df_can.index = pd.to_datetime(df_can.index).map(pd.Timestamp.timestamp)
+# df_can = df_can.drop(['AltitudeValid', 'Altitude', 'AltitudeAccuracy', 'FixType', 'Satellites', 'TimeValid', 'TimeConfirmed', 'Epoch', 'AltitudeValid_0', 'Altitude_0' ,'AltitudeAccuracy_0'], axis=1)
+
 df_can.to_sql('temp_candata', conn_car_and_phone, if_exists='replace', index=True, index_label='timestamp')
 
 cursor_car_and_phone.execute(

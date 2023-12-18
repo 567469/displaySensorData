@@ -21,7 +21,6 @@ MAP_WIDTH = 900
 MAP_HEIGHT = 800
 
 
-
 class App(tkinter.Tk):
     def convert_to_unix_float(self, timestamp_value):
         utc_timestamp = pd.to_datetime(timestamp_value, utc=True)
@@ -83,10 +82,13 @@ class App(tkinter.Tk):
         ax.set_title(titel, y=-0.08)
         return fig
 
-    def add_plot_to_grid(self, figure, row, column):
+    def add_plot_to_grid(self, figure, row, column, span=None):
         canvas = FigureCanvasTkAgg(figure, master=self)
         canvas.draw()
-        canvas.get_tk_widget().grid(row=row, column=column, sticky="nsew")
+        if span is None:
+            canvas.get_tk_widget().grid(row=row, column=column, sticky="nsew")
+        else:
+            canvas.get_tk_widget().grid(row=row, column=column, columnspan=span, sticky="nsew")
         self.canvas_dict[(row, column)] = canvas
 
     def get_coordinates(self, datum_from, datum_until):
@@ -103,7 +105,7 @@ class App(tkinter.Tk):
                                          'magnetometer_y', 'magnetometer_z', 'latitude_car', 'longitude_car',
                                          'speed_car', 'consumption'])
 
-        df['speed_phone'] = df['speed_phone']*3.6
+        df['speed_phone'] = df['speed_phone'] * 3.6
         df['speed_car'] = df['speed_car'] * 3.6
         # df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s', utc=True).dt.tz_convert('Europe/Berlin')
         return df
@@ -144,15 +146,19 @@ class App(tkinter.Tk):
         self.update_plot_with_point_multiaxes(0, 4, self.fig_accelerometer.get_axes()[0], timestamp_value,
                                               row['accelerometer_x'],
                                               row['accelerometer_y'], row['accelerometer_z'])
-        self.update_plot_with_point_multiaxes(1, 4, self.fig_gyroscope.get_axes()[0], timestamp_value, row['gyroscope_x'],
+        self.update_plot_with_point_multiaxes(1, 4, self.fig_gyroscope.get_axes()[0], timestamp_value,
+                                              row['gyroscope_x'],
                                               row['gyroscope_y'], row['gyroscope_z'])
         self.update_plot_with_point_multiaxes(0, 5, self.fig_gravity.get_axes()[0], timestamp_value, row['gravity_x'],
                                               row['gravity_y'], row['gravity_z'])
         self.update_plot_with_point_multiaxes(1, 5, self.fig_magnetometer.get_axes()[0], timestamp_value,
                                               row['magnetometer_x'],
                                               row['magnetometer_y'], row['magnetometer_z'])
-        self.update_plot_with_point_single(0, 6, self.fig_speed_phone.get_axes()[0], timestamp_value, row['speed_phone'])
-        self.update_plot_with_point_single(1, 6, self.fig_speed_car.get_axes()[0], timestamp_value, row['speed_car'])
+        self.update_plot_with_point_single(0, 6, self.fig_speed_phone.get_axes()[0], timestamp_value,
+                                           row['speed_phone'])
+        self.update_plot_with_point_single(0, 7, self.fig_speed_car.get_axes()[0], timestamp_value, row['speed_car'])
+        self.update_plot_with_point_single(1, 6, self.fig_consumption_car.get_axes()[0], timestamp_value,
+                                           row['consumption'])
 
     def __init__(self, datum_from, datum_until, *args, **kwargs):
         tkinter.Tk.__init__(self, *args, **kwargs)
@@ -168,6 +174,7 @@ class App(tkinter.Tk):
         self.grid_columnconfigure(4)
         self.grid_columnconfigure(5)
         self.grid_columnconfigure(6)
+        self.grid_columnconfigure(7)
         self.grid_rowconfigure(0)
         self.grid_rowconfigure(1)
         self.grid_rowconfigure(2)
@@ -216,16 +223,23 @@ class App(tkinter.Tk):
 
         df_speed_car = self.sensorDataDF[['timestamp', 'speed_car']]
         self.fig_speed_car = self.create_plot("Speed Car", df_speed_car)
-        self.add_plot_to_grid(self.fig_speed_car, 1, 6)
+        self.add_plot_to_grid(self.fig_speed_car, 0, 7)
 
-        sensorDataDF_without_zero_1 = self.sensorDataDF[(self.sensorDataDF['gnsslatitude'] != 0) & (self.sensorDataDF['gnsslongitude'] != 0)]
-        coordinates_1 = list(zip(sensorDataDF_without_zero_1['gnsslatitude'], sensorDataDF_without_zero_1['gnsslongitude']))
+        df_consumption_car = self.sensorDataDF[['timestamp', 'consumption']]
+        self.fig_consumption_car = self.create_plot("Consumption Car", df_consumption_car)
+        self.add_plot_to_grid(self.fig_consumption_car, 1, 6, span=2)
+
+        sensorDataDF_without_zero_1 = self.sensorDataDF[
+            (self.sensorDataDF['gnsslatitude'] != 0) & (self.sensorDataDF['gnsslongitude'] != 0)]
+        coordinates_1 = list(
+            zip(sensorDataDF_without_zero_1['gnsslatitude'], sensorDataDF_without_zero_1['gnsslongitude']))
         path_1 = self.map_widget.set_path(coordinates_1, color="blue", width=2)
 
-        sensorDataDF_without_zero_2 = self.sensorDataDF[(self.sensorDataDF['latitude_car'] != 0) & (self.sensorDataDF['longitude_car'] != 0)]
-        coordinates_2 = list(zip(sensorDataDF_without_zero_1['latitude_car'], sensorDataDF_without_zero_2['longitude_car']))
+        sensorDataDF_without_zero_2 = self.sensorDataDF[
+            (self.sensorDataDF['latitude_car'] != 0) & (self.sensorDataDF['longitude_car'] != 0)]
+        coordinates_2 = list(
+            zip(sensorDataDF_without_zero_1['latitude_car'], sensorDataDF_without_zero_2['longitude_car']))
         path = self.map_widget.set_path(coordinates_2, color="green", width=2)
-
 
         mitte_latitude = sensorDataDF_without_zero_1['gnsslatitude'].mean()
         mitte_longitude = sensorDataDF_without_zero_1['gnsslongitude'].mean()

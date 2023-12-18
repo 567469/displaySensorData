@@ -1,3 +1,7 @@
+import datetime
+import math
+import random
+
 import pandas as pd
 from matplotlib import pyplot as plt
 
@@ -91,9 +95,25 @@ def calculate_time_offset(df1_i, df2_i):
 
     # select common periode
     # -------------------------------------------------------------------------------
-    start_time = max(df1.index.min(), df1.index.min())
-    end_time = min(df2_new_resampled.index.max(), df2_new_resampled.index.max())
+    # start_time = max(df1.index.min(), df1.index.min())
+    # end_time = min(df2_new_resampled.index.max(), df2_new_resampled.index.max())
+
+    start_zeitpunkt = max(df1.index.min(), df1.index.min())
+    end_zeitpunkt = min(df2_new_resampled.index.max(), df2_new_resampled.index.max())
+    maximaler_start = end_zeitpunkt - datetime.timedelta(minutes=3)
+    differenz = maximaler_start - start_zeitpunkt
+
+    avg_speed = 0.0
+    while (avg_speed < 2.5) or (math.isnan(avg_speed)):
+        df_avg_speed = df1.copy()
+        zufaellige_sekunden = random.randint(0, int(differenz.total_seconds()))
+        start_time = start_zeitpunkt + datetime.timedelta(seconds=zufaellige_sekunden)
+        end_time = start_time + datetime.timedelta(minutes=3)
+        df_avg_speed = df_avg_speed[(df_avg_speed.index >= start_time) & (df_avg_speed.index <= end_time)]
+        avg_speed = df_avg_speed["speed"].mean()
     # -------------------------------------------------------------------------------
+
+    print(f"Start-Datum: {start_time} | End-Datum: {end_time}")
 
     df1 = df1[(df1.index >= start_time) & (df1.index <= end_time)]
 
@@ -101,21 +121,27 @@ def calculate_time_offset(df1_i, df2_i):
     optimal_offset = 0
     # plt_sth(df1, df2_new_resampled)
     diff = pd.Timedelta(0)
+    max_diff = pd.Timedelta(0)
+    count_correlation_decreases = 0
 
-    for offset in range(1, 1000, 1):
+    for offset in range(1, 10000, 1):
         correlation, diff = calculate_correlation(df1, df2_new_resampled, offset, start_time, end_time)
 
         print(offset)
         if correlation > max_correlation:
+            max_diff = diff
             max_correlation = correlation
             optimal_offset = offset
+            count_correlation_decreases = 0
         else:
-            break
+            count_correlation_decreases = count_correlation_decreases + 1
+            if count_correlation_decreases == 100:
+                break
 
-    print(diff)
+    print(max_diff)
     print(optimal_offset)
     print(max_correlation)
 
-    return diff
+    return max_diff
     # df2_new_resampled.index = pd.to_datetime(df2_new_resampled.index) - diff
     # plt_sth(df1, df2_new_resampled)
