@@ -90,7 +90,7 @@ def calculate_time_offset(df1_i, df2_i):
     df1.index = df1.index.tz_convert('UTC')
     df2.index = df2.index.tz_convert('UTC')
 
-    df2_new_resampled = df2.resample('L').mean().interpolate()
+    df2_new_resampled = df2.resample('100L').mean() #.interpolate()
     df2_new_resampled = df2_new_resampled.reindex(df1.index, method='nearest')
 
     # select common periode

@@ -9,8 +9,17 @@ BACKUP_DATABASES_PFAD = "C:\\Users\\simon\\Documents\\backups_databases\\"
 
 conn_car_and_phone = sqlite3.connect(DATENBANK_PFAD_GESAMT)
 
-dfphone = pd.read_sql_query("SELECT timestamp, gnsslatitude, gnsslongitude, speed as speed_phone, accelerometer_x, accelerometer_y, accelerometer_z, gyroscope_x, gyroscope_y, gyroscope_z, gravity_x, gravity_y, gravity_z, magnetometer_x, magnetometer_y, magnetometer_z FROM sensordata", conn_car_and_phone)
-dfcar = pd.read_sql_query("SELECT timestamp, Latitude as latitude_car, Longitude as longitude_car, Speed as speed_car, Consumption as consumption FROM candata", conn_car_and_phone)
+datum_from = '2023-12-20 19:53:00'
+datum_until = '2023-12-20 20:26:00'
+
+dfphone = pd.read_sql_query('SELECT timestamp, gnsslatitude, gnsslongitude, speed as speed_phone, accelerometer_x, '
+                            'accelerometer_y, accelerometer_z, gyroscope_x, gyroscope_y, gyroscope_z, gravity_x, '
+                            'gravity_y, gravity_z, magnetometer_x, magnetometer_y, magnetometer_z '
+                            f'FROM sensordata WHERE timestamp BETWEEN \"{datum_from}\" AND \"{datum_until}\"',
+                            conn_car_and_phone)
+dfcar = pd.read_sql_query('SELECT timestamp, Latitude as latitude_car, Longitude as longitude_car, '
+                          'Speed as speed_car, Consumption as consumption FROM candata '
+                          f'WHERE timestamp BETWEEN \"{datum_from}\" AND \"{datum_until}\"', conn_car_and_phone)
 
 dfphone['timestamp'] = pd.to_datetime(dfphone['timestamp'])
 dfcar['timestamp'] = pd.to_datetime(dfcar['timestamp'])
@@ -24,7 +33,7 @@ dfcar_filtered = dfcar[(dfcar['timestamp'] >= min_timestamp) & (dfcar['timestamp
 dfphone_filtered.set_index('timestamp', inplace=True)
 dfcar_filtered.set_index('timestamp', inplace=True)
 
-df2_new_resampled = dfcar_filtered.resample('L').mean().interpolate()
+df2_new_resampled = dfcar_filtered.resample('100L').mean() #.interpolate()
 df2_new_resampled = df2_new_resampled.reindex(dfphone_filtered.index, method='nearest')
 
 result_new = pd.merge(dfphone_filtered, df2_new_resampled, left_index=True, right_index=True, how='left')

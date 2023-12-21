@@ -85,6 +85,7 @@ df_can = df_can.dropna(subset=['SpeedValid', 'Speed', 'PositionValid', 'Latitude
 
 # Berechnete Korrektur aus gettimedifference.py
 # ----------------------------------------------------------------------------------------------------------------------
+
 plt_sth(df1, df_can)
 
 df_can.index = pd.to_datetime(df_can.index) - pd.Timedelta(minutes=2)
