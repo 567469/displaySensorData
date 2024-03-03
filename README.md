@@ -2,7 +2,7 @@ Dieses Repository ist Teil der Bachelorarbeit von Simon J. Heilmeier (Matr.Nr.: 
 
 # Prototypische Entwicklung einer Smartphone-Anwendung zur Verbrauchserkennung elektrifizierter Fahrzeuge
 
-Bei der Implementierung der fogenden Scripte wurde ChatGPT4 [^1] verwendet um im Entwicklungsprozess zu unterstützen. https://chat.openai.com/
+Bei der Implementierung der fogenden Scripte wurde ChatGPT4 [^1] verwendet um im Entwicklungsprozess zu unterstützen.
 
 Inhaltsverzeichnis:
 
