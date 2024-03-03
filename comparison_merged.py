@@ -1,6 +1,7 @@
 import sqlite3
 import tkinter
 import tkinter.messagebox
+from datetime import datetime
 from tkinter.ttk import Label
 
 import pandas as pd
@@ -11,9 +12,8 @@ from sklearn.preprocessing import StandardScaler
 from tkintermapview import TkinterMapView
 
 from timeSelection import SelectionDialog
+from variables import DATENBANK_PFAD_GESAMT, MAP_DATENBANK_PFAD
 
-DATENBANK_PFAD = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\databases\\car_and_phone_database.db"
-MAP_DATENBANK_PFAD = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\offline_tiles_freising.db"
 APP_NAME = "sensorDataMapViewer.py"
 WIDTH = 2400
 HEIGHT = 870
@@ -55,6 +55,19 @@ class App(tkinter.Tk):
             new_point_x.is_point = True
             canvas.draw()
 
+    def update_plot_with_consumption(self, row, column, ax, point_x, consumption, consumption_est):
+        canvas = self.canvas_dict.get((row, column))
+        if canvas:
+            for line in ax.lines[:]:
+                if hasattr(line, 'is_point') and line.is_point:
+                    line.remove()
+
+            new_point_x, = ax.plot(point_x, consumption, 'ro')
+            new_point_y, = ax.plot(point_x, consumption_est, 'ro')
+            new_point_x.is_point = True
+            new_point_y.is_point = True
+            canvas.draw()
+
     def create_combined_plot(self, titel, df1):
         fig = Figure(figsize=(5, 4), dpi=100)
         ax = fig.add_subplot(111)
@@ -62,6 +75,19 @@ class App(tkinter.Tk):
         ax.plot(df1['timestamp'], df1.iloc[:, 1], label='X-Werte')
         ax.plot(df1['timestamp'], df1.iloc[:, 2], label='Y-Werte')
         ax.plot(df1['timestamp'], df1.iloc[:, 3], label='Z-Werte')
+
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.12), ncol=3, fancybox=True)
+
+        ax.axes.get_xaxis().set_ticks([])
+        ax.set_title(titel, y=-0.08)
+        return fig
+
+    def create_combined_consumption(self, titel, df1):
+        fig = Figure(figsize=(5, 4), dpi=100)
+        ax = fig.add_subplot(111)
+
+        ax.plot(df1['timestamp'], df1.iloc[:, 1], label='orig')
+        ax.plot(df1['timestamp'], df1.iloc[:, 2], label='est')
 
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.12), ncol=3, fancybox=True)
 
@@ -92,7 +118,7 @@ class App(tkinter.Tk):
         self.canvas_dict[(row, column)] = canvas
 
     def get_coordinates(self, datum_from, datum_until):
-        conn = sqlite3.connect(DATENBANK_PFAD)
+        conn = sqlite3.connect(DATENBANK_PFAD_GESAMT)
         cursor = conn.cursor()
         cursor.execute(
             f"SELECT * FROM merged_data WHERE timestamp BETWEEN \"{datum_from}\" AND \"{datum_until}\" ORDER BY timestamp ASC")
@@ -103,7 +129,7 @@ class App(tkinter.Tk):
                                          'accelerometer_y', 'accelerometer_z', 'gyroscope_x', 'gyroscope_y',
                                          'gyroscope_z', 'gravity_x', 'gravity_y', 'gravity_z', 'magnetometer_x',
                                          'magnetometer_y', 'magnetometer_z', 'latitude_car', 'longitude_car',
-                                         'speed_car', 'consumption'])
+                                         'speed_car', 'consumption', 'consumption_est'])
 
         df['speed_phone'] = df['speed_phone'] * 3.6
         df['speed_car'] = df['speed_car'] * 3.6
@@ -113,6 +139,11 @@ class App(tkinter.Tk):
     def set_active_marker(self, value):
         row = self.sensorDataDF.iloc[int(value)]
 
+        dt_obj = datetime.fromisoformat(row['timestamp'])
+
+        # Formatierung in 'HH:MM:SS'
+        timestamp_short = dt_obj.strftime('%H:%M:%S')
+
         timestamp_value = row['timestamp']
         # timestamp_str = pd.to_datetime(timestamp_value, unit='s', utc=True).tz_convert('Europe/Berlin')
         lat_1 = row['gnsslatitude']
@@ -120,10 +151,10 @@ class App(tkinter.Tk):
 
         if (lat_1 != 0) & (lon_1 != 0):
             if self.current_marker_1 is None:
-                self.current_marker_1 = self.map_widget.set_marker(lat_1, lon_1, text=str(timestamp_value))
+                self.current_marker_1 = self.map_widget.set_marker(lat_1, lon_1, text=timestamp_short)
             else:
                 self.current_marker_1.set_position(lat_1, lon_1)
-                self.current_marker_1.set_text(str(timestamp_value))
+                self.current_marker_1.set_text(timestamp_short)
 
         self.labelTime.config(text=str(timestamp_value))
         self.labelLat.config(text=f"{lat_1:.6f}")
@@ -134,10 +165,10 @@ class App(tkinter.Tk):
 
         if (lat_2 != 0) & (lon_2 != 0):
             if self.current_marker_2 is None:
-                self.current_marker_2 = self.map_widget.set_marker(lat_2, lon_2, text=str(timestamp_value))
+                self.current_marker_2 = self.map_widget.set_marker(lat_2, lon_2, text=timestamp_short)
             else:
                 self.current_marker_2.set_position(lat_2, lon_2)
-                self.current_marker_2.set_text(str(timestamp_value))
+                self.current_marker_2.set_text(timestamp_short)
 
         # self.labelTime.config(text=str(timestamp_value))
         # self.labelLat.config(text=f"{lat_2:.6f}")
@@ -157,8 +188,7 @@ class App(tkinter.Tk):
         self.update_plot_with_point_single(0, 6, self.fig_speed_phone.get_axes()[0], timestamp_value,
                                            row['speed_phone'])
         self.update_plot_with_point_single(0, 7, self.fig_speed_car.get_axes()[0], timestamp_value, row['speed_car'])
-        self.update_plot_with_point_single(1, 6, self.fig_consumption_car.get_axes()[0], timestamp_value,
-                                           row['consumption'])
+        self.update_plot_with_consumption(1, 6, self.fig_consumption_car.get_axes()[0], timestamp_value, row['consumption'], row['consumption_est'])
 
     def __init__(self, datum_from, datum_until, *args, **kwargs):
         tkinter.Tk.__init__(self, *args, **kwargs)
@@ -225,25 +255,20 @@ class App(tkinter.Tk):
         self.fig_speed_car = self.create_plot("Speed Car", df_speed_car)
         self.add_plot_to_grid(self.fig_speed_car, 0, 7)
 
-        df_consumption_car = self.sensorDataDF[['timestamp', 'consumption']]
-        self.fig_consumption_car = self.create_plot("Consumption Car", df_consumption_car)
+        df_consumption_car = self.sensorDataDF[['timestamp', 'consumption', 'consumption_est']]
+        self.fig_consumption_car = self.create_combined_consumption("Consumption Car", df_consumption_car)
         self.add_plot_to_grid(self.fig_consumption_car, 1, 6, span=2)
 
-        sensorDataDF_without_zero_1 = self.sensorDataDF[
-            (self.sensorDataDF['gnsslatitude'] != 0) & (self.sensorDataDF['gnsslongitude'] != 0)]
-        coordinates_1 = list(
-            zip(sensorDataDF_without_zero_1['gnsslatitude'], sensorDataDF_without_zero_1['gnsslongitude']))
+        sensorDataDF_without_zero_1 = self.sensorDataDF[(self.sensorDataDF['gnsslatitude'] != 0) & (self.sensorDataDF['gnsslongitude'] != 0)]
+        coordinates_1 = list(zip(sensorDataDF_without_zero_1['gnsslatitude'], sensorDataDF_without_zero_1['gnsslongitude']))
         path_1 = self.map_widget.set_path(coordinates_1, color="blue", width=2)
 
-        sensorDataDF_without_zero_2 = self.sensorDataDF[
-            (self.sensorDataDF['latitude_car'] != 0) & (self.sensorDataDF['longitude_car'] != 0)]
-        coordinates_2 = list(
-            zip(sensorDataDF_without_zero_1['latitude_car'], sensorDataDF_without_zero_2['longitude_car']))
-        path = self.map_widget.set_path(coordinates_2, color="green", width=2)
+        # sensorDataDF_without_zero_2 = self.sensorDataDF[(self.sensorDataDF['latitude_car'] != 0) & (self.sensorDataDF['longitude_car'] != 0)]
+        # coordinates_2 = list(zip(sensorDataDF_without_zero_1['latitude_car'], sensorDataDF_without_zero_2['longitude_car']))
+        # path = self.map_widget.set_path(coordinates_2, color="green", width=2)
 
         mitte_latitude = sensorDataDF_without_zero_1['gnsslatitude'].mean()
         mitte_longitude = sensorDataDF_without_zero_1['gnsslongitude'].mean()
-
         self.map_widget.set_position(mitte_latitude, mitte_longitude)
         self.map_widget.set_zoom(17)
         self.current_marker_1 = None
@@ -263,7 +288,7 @@ class App(tkinter.Tk):
 
 
 def main():
-    conn = sqlite3.connect(DATENBANK_PFAD)
+    conn = sqlite3.connect(DATENBANK_PFAD_GESAMT)
     query = "SELECT timestamp FROM sensordata"
     df = pd.read_sql_query(query, conn)
     # df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s', utc=True).dt.tz_convert('Europe/Berlin')

@@ -7,12 +7,8 @@ import pandas as pd
 from asammdf import MDF
 
 from gettimedifference import calculate_time_offset, plt_sth
-
-IMPORT_DATENBANK_PFAD_AUTO = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\import_folder\\car\\"
-IMPORT_DATENBANK_PFAD_PHONE = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\import_folder\\phone\\"
-DATENBANK_PFAD_GESAMT = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\databases\\car_and_phone_database.db"
-DATABASES_PFAD = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\databases\\"
-BACKUP_DATABASES_PFAD = "C:\\Users\\simon\\Documents\\backups_databases\\"
+from variables import DATENBANK_PFAD_GESAMT, IMPORT_DATENBANK_PFAD_PHONE, \
+    IMPORT_DATENBANK_PFAD_AUTO, DATABASES_PFAD, BACKUP_DATABASES_PFAD
 
 
 def get_file_paths(root_folder):
@@ -34,17 +30,24 @@ print("Start loading phone data")
 conn_phone = sqlite3.connect(os.path.join(IMPORT_DATENBANK_PFAD_PHONE, "sensordatabase.db"))
 cursor_phone = conn_phone.cursor()
 
-cursor_phone.execute('SELECT * FROM sensordata WHERE (gnsslatitude > 0) AND (gnsslongitude > 0)')
+cursor_phone.execute('SELECT timestamp, gnsslatitude, gnsslongitude, speed, '
+                     'accelerometer_x, accelerometer_y, accelerometer_z, '
+                     'gyroscope_x, gyroscope_y, gyroscope_z, gravity_x, '
+                     'gravity_y, gravity_z, magnetometer_x, magnetometer_y, '
+                     'magnetometer_z, consumption_est FROM sensordata '
+                     'WHERE (gnsslatitude > 0) AND (gnsslongitude > 0) ')
+                     # 'AND (timestamp between \"2024-02-08 17:25:38.000000+01:00\" and \"2024-02-08 17:47:09.000000+01:00\")')
+
 rows = cursor_phone.fetchall()
 df1 = pd.DataFrame(rows, columns=['timestamp', 'gnsslatitude', 'gnsslongitude', 'speed', 'accelerometer_x',
                                   'accelerometer_y', 'accelerometer_z', 'gyroscope_x', 'gyroscope_y',
                                   'gyroscope_z', 'gravity_x', 'gravity_y', 'gravity_z', 'magnetometer_x',
-                                  'magnetometer_y', 'magnetometer_z'])
+                                  'magnetometer_y', 'magnetometer_z', 'consumption_est'])
 df1.rename(columns={'gnsslatitude': 'latitude', 'gnsslongitude': 'longitude'}, inplace=True)
 df1 = df1[['timestamp', 'latitude', 'longitude', 'speed']]
 
 cursor_car_and_phone.executemany(
-    'INSERT OR IGNORE INTO sensordata VALUES (?, ?, ?, ? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT OR IGNORE INTO sensordata VALUES (?, ?, ?, ? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     rows)
 
 conn_car_and_phone.commit()

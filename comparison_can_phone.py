@@ -2,11 +2,8 @@ import os
 import sqlite3
 import tkinter
 import tkinter.messagebox
-from tkinter.ttk import Label
 
 import pandas as pd
-from asammdf import MDF
-from matplotlib import pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from sklearn.cluster import DBSCAN
@@ -14,11 +11,8 @@ from sklearn.preprocessing import StandardScaler
 from tkintermapview import TkinterMapView
 
 from timeSelection import SelectionDialog
+from variables import DATENBANK_PFAD_GESAMT, MAP_DATENBANK_PFAD
 
-# IMPORT_DATENBANK_PFAD_AUTO = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\import_folder\\car\\"
-# IMPORT_DATENBANK_PFAD_PHONE = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\import_folder\\phone\\sensordatabase.db"
-DATENBANK_PFAD = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\databases\\car_and_phone_database.db"
-MAP_DATENBANK_PFAD = "C:\\Users\\simon\\PycharmProjects\\displaySensorData\\offline_tiles_freising.db"
 APP_NAME = "sensorDataMapViewer.py"
 WIDTH = 2900
 HEIGHT = 1310
@@ -87,7 +81,7 @@ class App(tkinter.Tk):
         return unix_float_timestamp
 
     def get_coordinates_1(self, datum_from, datum_until):
-        conn = sqlite3.connect(DATENBANK_PFAD)
+        conn = sqlite3.connect(DATENBANK_PFAD_GESAMT)
         cursor = conn.cursor()
         cursor.execute(f"SELECT timestamp, gnsslatitude, gnsslongitude FROM sensordata WHERE timestamp BETWEEN \"{datum_from}\" AND \"{datum_until}\" ORDER BY timestamp ASC")
         rows = cursor.fetchall()
@@ -116,7 +110,7 @@ class App(tkinter.Tk):
         # df.rename(columns={'timestamps': 'timestamp'}, inplace=True)
         # print("Ende loading car data")
 
-        conn = sqlite3.connect(DATENBANK_PFAD)
+        conn = sqlite3.connect(DATENBANK_PFAD_GESAMT)
         cursor = conn.cursor()
         cursor.execute(f"SELECT timestamp, Latitude as latitude, Longitude as longitude FROM candata WHERE timestamp BETWEEN \"{datum_from}\" AND \"{datum_until}\" ORDER BY timestamp ASC")
         rows = cursor.fetchall()
@@ -215,7 +209,7 @@ class App(tkinter.Tk):
 
 
 def main():
-    conn = sqlite3.connect(DATENBANK_PFAD)
+    conn = sqlite3.connect(DATENBANK_PFAD_GESAMT)
     query = "SELECT timestamp FROM sensordata"
     df = pd.read_sql_query(query, conn)
     df['timestamp_float'] = pd.to_datetime(df['timestamp']).map(pd.Timestamp.timestamp)
