@@ -41,8 +41,33 @@ combined_data$table <- factor(c(rep("merged_data", nrow(merged_data)), rep("vide
 
 # Erstelle zwei separate Plots
 # Plot für Latitude
-p1 <- ggplot(combined_data, aes(x = timestamp, y = consumption, color = table)) +
-  geom_line() +
-  labs(y = "Consumption")
+#p1 <- ggplot(combined_data, aes(x = timestamp, y = consumption, color = table)) +
+#  geom_line() +
+#  labs(y = "Consumption")
 
-print(p1)
+#print(p1)
+
+# Darstellung als Linien-Graph
+gg <- ggplot(combined_data, aes(x = timestamp, y = consumption, group=table)) + 
+  geom_line(aes(linetype = table, color = table, size = table)) +
+  labs(x="Zeit", y="kWh/100 km") +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    legend.title = element_text(size=14),       # Größe des Legendentitels
+    legend.text = element_text(size=12),        # Größe des Legendentextes
+    axis.title = element_text(size=14),         # Größe der Achsentitel
+    axis.text.x = element_text(size=10),        # Größe des Textes der x-Achse
+    axis.text.y = element_text(size=10)         # Größe des Textes der y-Achse
+  ) +
+  scale_color_manual(values=c("#E69F00", "#56B4E9"), 
+                     name="Quelle", 
+                     labels=c("fusioniert Daten", "Aufnahme-Daten")) +
+  scale_linetype_manual(values=c("solid", "dashed"), 
+                        name="Quelle", 
+                        labels=c("fusioniert Daten", "Aufnahme-Daten")) +
+  scale_size_manual(values=c(1.01, 0.75),                        
+                    name="Quelle", 
+                    labels=c("fusioniert Daten", "Aufnahme-Daten"))
+
+print(gg)
